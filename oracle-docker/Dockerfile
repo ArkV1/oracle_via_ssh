@@ -5,7 +5,8 @@ FROM container-registry.oracle.com/database/free:latest
 USER root
 
 # Update the package manager and install OpenSSH server and clients
-RUN dnf update -y && \
+RUN sed -i 's/yum-us-phoenix-1.oracle.com/yum.oracle.com/' /etc/yum/vars/ociregion && \
+    dnf update -y && \
     dnf install -y openssh-server openssh-clients && \
     dnf clean all && \
     mkdir /var/run/sshd && \
