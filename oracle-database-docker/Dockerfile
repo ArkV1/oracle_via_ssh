@@ -4,20 +4,25 @@ FROM container-registry.oracle.com/database/free:latest
 # Switch to root user to perform installations
 USER root
 
-# Update package manager and install OpenSSH server
-RUN dnf config-manager --add-repo=https://yum.oracle.com/repo/OracleLinux/OL8/baseos/latest/x86_64 && \
-    dnf config-manager --add-repo=https://yum.oracle.com/repo/OracleLinux/OL8/appstream/x86_64 && \
-    dnf install -y --nogpgcheck openssh-server && \
-    dnf clean all && \
-    mkdir -p /var/run/sshd && \
-    echo 'root:rootpassword' | chpasswd && \
-    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+# Install SSH server and other necessary packages
+RUN yum update -y && yum install -y openssh-server && yum clean all
 
-# Expose ports for Oracle and SSH
-EXPOSE 1521 5500 22
+# Set up SSH
+RUN mkdir /var/run/sshd
+RUN ssh-keygen -A
+RUN echo 'root:your_password' | chpasswd
+
+# Allow root login via SSH (Note: This is not recommended for production)
+RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# SSH login fix. Otherwise user is kicked off after login
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+# Expose SSH port
+EXPOSE 22 1521 5500
+
+# Start SSH service and Oracle
+CMD ["/usr/sbin/sshd", "-D"]
 
 # Switch back to oracle user
 USER oracle
-
-# Start both SSH and Oracle services
-CMD ["/bin/sh", "-c", "sudo /usr/sbin/sshd && /bin/tns start"]
